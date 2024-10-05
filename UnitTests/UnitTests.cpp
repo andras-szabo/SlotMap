@@ -268,6 +268,29 @@ namespace UnitTests
 			Assert::IsFalse(slotmap.TryGet(otherKey, value));
 		}
 
+		TEST_METHOD(ClearAfterGrow)
+		{
+			Unalmas::SlotMap<double> slotmap;
+			std::vector<Unalmas::SlotMapKey> keys;
+
+			for (int i = 0; i < 100; ++i)
+			{
+				keys.push_back(slotmap.Insert(static_cast<double>(i)));
+			}
+
+			Assert::IsTrue(slotmap.Size() == 100);
+
+			slotmap.Clear();
+
+			double value;
+			for (const auto& key : keys)
+			{
+				Assert::IsFalse(slotmap.TryGet(key, value));
+			}
+
+			Assert::IsTrue(slotmap.Size() == 0 && slotmap.Capacity() >= 100);
+		}
+
 		TEST_METHOD(Grow)
 		{
 			Unalmas::SlotMap<int> slotmap;		// Default capacity: 8
@@ -502,6 +525,44 @@ namespace UnitTests
 			{
 				const auto value = slotmap[keys[i]];
 				Assert::IsTrue(value == i * 2);
+			}
+		}
+
+		TEST_METHOD(EraseAndReuseFullCapacity)
+		{
+			Unalmas::SlotMap<int> slotmap(4);
+			std::vector<Unalmas::SlotMapKey> keys;
+			for (int i = 0; i < 4; ++i)
+			{
+				keys.push_back(slotmap.Insert(i));
+			}
+
+			Assert::IsTrue(slotmap.Size() == 4 && slotmap.Capacity() == 4);
+
+			for (int i = 0; i < 4; ++i)
+			{
+				Assert::IsTrue(slotmap[keys[i]] == i);
+			}
+
+			for (const auto& key : keys)
+			{
+				Assert::IsTrue(slotmap.Erase(key));
+			}
+
+			Assert::IsTrue(slotmap.Size() == 0 && slotmap.Capacity() == 4);
+
+			keys.clear();
+
+			for (int i = 0; i < 4; ++i)
+			{
+				keys.push_back(slotmap.Insert(i));
+			}
+
+			Assert::IsTrue(slotmap.Size() == 4 && slotmap.Capacity() == 4);
+
+			for (int i = 0; i < 4; ++i)
+			{
+				Assert::IsTrue(slotmap[keys[i]] == i);
 			}
 		}
 
