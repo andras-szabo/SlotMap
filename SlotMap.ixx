@@ -85,7 +85,7 @@ export namespace Unalmas
 	};
 
 	template <typename T>
-	class SlotMap
+	class __declspec(dllexport) SlotMap
 	{
 	private:
 		SlotMapKey*				slots{ nullptr };
@@ -139,6 +139,13 @@ export namespace Unalmas
 	template <typename T>
 	Unalmas::SlotMapKey SlotMap<T>::GetKeyForIndex(int index) const
 	{
+#ifndef SLOTMAP_RELEASE
+		if (index >= size)
+		{
+			throw std::out_of_range("[SlotMap] Trying to look up invalid index.");
+		}
+#endif
+
 		return slots[valueToSlot[index]];
 	}
 
@@ -163,9 +170,21 @@ export namespace Unalmas
 	template <typename T>
 	T& SlotMap<T>::operator[](const SlotMapKey& key) const
 	{
+#ifndef SLOTMAP_RELEASE
+		if (key.index >= size)
+		{
+			throw std::out_of_range("[SlotMap] Key index is out of bounds.");
+		}
+#endif
+
 		const SlotMapKey& slot = slots[key.index];
 
-		assert(slot.generation == key.generation);
+#ifndef SLOTMAP_RELEASE
+		if (slot.generation != key.generation)
+		{
+			throw std::invalid_argument("[SlotMap] Trying to use a key which is no longer valid.");
+		}
+#endif
 
 		return values[slot.index];
 	}
@@ -173,6 +192,13 @@ export namespace Unalmas
 	template <typename T>
 	T& SlotMap<T>::operator[](int index) const
 	{
+#ifndef SLOTMAP_RELEASE
+		if (index >= size)
+		{
+			throw std::out_of_range("[SlotMap] Index is out of bounds.");
+		}
+#endif
+
 		return values[index];
 	}
 
