@@ -1,6 +1,8 @@
 //#define SLOTMAP_RELEASE
 export module SlotMap;
 
+#define DEFAULT_CAPACITY 8
+
 // Guarantees:
 // constant time lookup, erase, and insert
 // dense, contiguous element storage
@@ -56,12 +58,12 @@ export namespace Unalmas
 				throw std::out_of_range("[SlotMap] Trying to dereference invalid iterator.");
 			}
 #endif
-			
+
 			return *(ptr + index);
 		}
 
 	protected:
-		T*		ptr;
+		T* ptr;
 		int		index;
 		int		size;
 	};
@@ -79,46 +81,48 @@ export namespace Unalmas
 				throw std::out_of_range("[SlotMap] Trying to dereference invalid iterator.");
 			}
 #endif
-			
+
 			return *(this->ptr + this->index);
 		}
 	};
 
 	template <typename T>
-	class __declspec(dllexport) SlotMap
+	class SlotMap
 	{
 	private:
-		SlotMapKey*				slots{ nullptr };
-		T*						values{ nullptr };
-		unsigned int*			valueToSlot{ nullptr };
+		SlotMapKey* slots{ nullptr };
+		T* values{ nullptr };
+		unsigned int* valueToSlot{ nullptr };
 		int						firstFreeSlot{ 0 };
+		int						lastFreeSlot{ 0 };
 		int						size{ 0 };
 		int						capacity{ 0 };
 
 	public:
-								SlotMap();
-								SlotMap(int capacity);
+		SlotMap();
+		SlotMap(int capacity);
 
-								SlotMap(const SlotMap& rhs);	// Only supported for trivially copyable T types
-								SlotMap(SlotMap&& rhs);			
-								~SlotMap();
-						
-		SlotMap&				operator=(const SlotMap& rhs) = delete;	// Copy and move assignment ops are deleted,
-		SlotMap&				operator=(SlotMap&& rhs) = delete;		// b/c I don't want to make a decision about how to
-																		// handle existing keys. E.g. when copy assigning
-																		// a slotmap, would existing keys be invalidated?
-																		// But what if those keys were compatible with the
-																		// original? No such issue in copy and move ctors,
-																		// because there _are_ no initial keys to invalidate,
-																		// so we can just say that all keys of the original
-																		// will be valid in the new copy (or moved-to) instance.
+		SlotMap(const SlotMap& rhs);	// Only supported for trivially copyable T types
+		SlotMap(SlotMap&& rhs);
+		~SlotMap();
 
-		T&						operator[](const SlotMapKey& key) const;
-		T&						operator[](int index) const;
+		SlotMap& operator=(const SlotMap& rhs) = delete;	// Copy and move assignment ops are deleted,
+		SlotMap& operator=(SlotMap&& rhs) = delete;		// b/c I don't want to make a decision about how to
+		// handle existing keys. E.g. when copy assigning
+		// a slotmap, would existing keys be invalidated?
+		// But what if those keys were compatible with the
+		// original? No such issue in copy and move ctors,
+		// because there _are_ no initial keys to invalidate,
+		// so we can just say that all keys of the original
+		// will be valid in the new copy (or moved-to) instance.
+
+		T& operator[](const SlotMapKey& key) const;
+		T& operator[](int index) const;
 		bool					TryGet(const SlotMapKey& key, T& value) const;
 		Unalmas::SlotMapKey		GetKeyForIndex(int index) const;
 
 		int						Size() const { return size; }
+		int						Capacity() const { return capacity; }
 
 		template <typename U>
 		SlotMapKey   			Insert(U&& value);
@@ -130,7 +134,7 @@ export namespace Unalmas
 		SlotMapConstIterator<T>	end() const;
 
 		SlotMapIterator<T>		begin();
-		
+
 	private:
 		void					Grow();
 		void					DestructExistingItems();
@@ -171,7 +175,7 @@ export namespace Unalmas
 	T& SlotMap<T>::operator[](const SlotMapKey& key) const
 	{
 #ifndef SLOTMAP_RELEASE
-		if (key.index >= size)
+		if (key.index >= capacity)
 		{
 			throw std::out_of_range("[SlotMap] Key index is out of bounds.");
 		}
@@ -219,7 +223,7 @@ export namespace Unalmas
 	}
 
 	template <typename T>
-	SlotMap<T>::SlotMap() : SlotMap<T>(8)
+	SlotMap<T>::SlotMap() : SlotMap<T>(DEFAULT_CAPACITY)
 	{
 	}
 
@@ -231,10 +235,15 @@ export namespace Unalmas
 		values = static_cast<T*>(std::malloc(capacity * sizeof(T)));
 		valueToSlot = new unsigned int[capacity];
 
-		for (int i = 0; i < capacity; ++i)
+		for (int i = 0; i < capacity - 1; ++i)
 		{
 			slots[i] = SlotMapKey(i + 1, 0);
 		}
+
+		// The last slot's index (showing the _next_ free slot)
+		// should point to itself at start.
+		slots[capacity - 1] = SlotMapKey(capacity - 1, 0);
+		lastFreeSlot = capacity - 1;
 	}
 
 	template <typename T>
@@ -245,6 +254,7 @@ export namespace Unalmas
 		size = rhs.size;
 		capacity = rhs.capacity;
 		firstFreeSlot = rhs.firstFreeSlot;
+		lastFreeSlot = rhs.lastFreeSlot;
 
 		slots = new SlotMapKey[capacity];
 		values = static_cast<T*>(std::malloc(capacity * sizeof(T)));
@@ -317,6 +327,7 @@ export namespace Unalmas
 		{
 			slot.generation++;
 			const int valueIndex = slot.index;
+			const int removedSlotIndex = valueToSlot[valueIndex];
 
 			// Destruct existing item
 			values[valueIndex].~T();
@@ -334,9 +345,22 @@ export namespace Unalmas
 					values[size - 1].~T();
 				}
 
-				// Adjust slot lookup
 				valueToSlot[valueIndex] = valueToSlot[size - 1];
 			}
+
+			// If the first free slot is created by this removal, set both first and last
+			// to the removed slot, and make sure the slot's index is also pointing at itself.
+			if (firstFreeSlot == -1)
+			{
+				firstFreeSlot = removedSlotIndex;
+			}
+			else
+			{
+				slots[lastFreeSlot].index = removedSlotIndex;
+			}
+
+			slots[removedSlotIndex].index = removedSlotIndex;
+			lastFreeSlot = removedSlotIndex;
 
 			// Adjust the affected slot:
 			SlotMapKey& movedSlot = slots[valueToSlot[valueIndex]];
@@ -375,7 +399,16 @@ export namespace Unalmas
 
 		valueToSlot[newValueIndex] = slotIndex;
 
-		firstFreeSlot = slot.index;
+		if (slot.index == firstFreeSlot)
+		{
+			firstFreeSlot = -1;				// Ran out of free slots!
+			lastFreeSlot = -1;
+		}
+		else
+		{
+			firstFreeSlot = slot.index;
+		}
+
 		slot.index = newValueIndex;
 
 		return SlotMapKey(slotIndex, slot.generation);
@@ -422,10 +455,15 @@ export namespace Unalmas
 		values = newValues;
 		valueToSlot = newValueToSlot;
 
-		for (int i = capacity; i < newCapacity; ++i)
+		for (int i = capacity; i < newCapacity - 1; ++i)
 		{
 			slots[i].index = i + 1;
 		}
+
+		slots[newCapacity - 1].index = newCapacity - 1;
+
+		firstFreeSlot = capacity;
+		lastFreeSlot = newCapacity - 1;
 
 		capacity = newCapacity;
 	}

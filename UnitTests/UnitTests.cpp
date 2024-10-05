@@ -14,11 +14,11 @@ namespace UnitTests
 	{
 		NonMovable() = default;
 
-		NonMovable(const NonMovable& other)				= default;
-		NonMovable& operator=(const NonMovable& other)	= default;
+		NonMovable(const NonMovable& other) = default;
+		NonMovable& operator=(const NonMovable& other) = default;
 
-		NonMovable(NonMovable&& other)					= delete;
-		NonMovable& operator=(NonMovable&& other)		= delete;
+		NonMovable(NonMovable&& other) = delete;
+		NonMovable& operator=(NonMovable&& other) = delete;
 
 		explicit NonMovable(int value_) : value{ value_ } {}
 
@@ -29,11 +29,11 @@ namespace UnitTests
 	{
 		NonCopyable() = default;
 
-		NonCopyable(const NonCopyable& other)				= delete;
-		NonCopyable& operator=(const NonCopyable& other)	= delete;
+		NonCopyable(const NonCopyable& other) = delete;
+		NonCopyable& operator=(const NonCopyable& other) = delete;
 
-		NonCopyable(NonCopyable&& other)					= default;
-		NonCopyable& operator=(NonCopyable&& other)			= default;
+		NonCopyable(NonCopyable&& other) = default;
+		NonCopyable& operator=(NonCopyable&& other) = default;
 
 		explicit NonCopyable(int value_) : value{ value_ } {}
 
@@ -391,7 +391,7 @@ namespace UnitTests
 			for (int i = 0; i < 100; ++i)
 			{
 				const auto& key = slotmap.GetKeyForIndex(i);
-				
+
 				const float valueByIndex = slotmap[i];
 				const float valueByKey = slotmap[key];
 
@@ -424,7 +424,7 @@ namespace UnitTests
 				Logger::WriteMessage("\n");
 			}
 
-			
+
 			slotmap.Erase(keyToRemove);
 
 			Assert::IsTrue(slotmap.Size() == 9);
@@ -467,6 +467,42 @@ namespace UnitTests
 			Assert::IsTrue(slotmap[newKey] == 123);
 			Assert::IsTrue(slotmap.Erase(newKey));
 			Assert::IsTrue(slotmap.Size() == 0);
+		}
+
+		TEST_METHOD(EraseAndReuse2)
+		{
+			Unalmas::SlotMap<int> slotmap;
+			std::vector<Unalmas::SlotMapKey> keys;
+			for (int i = 0; i < 7; ++i)
+			{
+				const auto key = slotmap.Insert(i);
+				keys.push_back(key);
+			}
+
+			Assert::IsTrue(slotmap.Size() == 7);
+			Assert::IsTrue(slotmap.Capacity() == 8);
+
+			for (const auto& key : keys)
+			{
+				Assert::IsTrue(slotmap.Erase(key));
+			}
+
+			keys.clear();
+
+			for (int i = 0; i < 7; ++i)
+			{
+				const auto newKey = slotmap.Insert(i * 2);
+				keys.push_back(newKey);
+			}
+
+			Assert::IsTrue(slotmap.Size() == 7);
+			Assert::IsTrue(slotmap.Capacity() == 8);
+
+			for (int i = 0; i < 7; ++i)
+			{
+				const auto value = slotmap[keys[i]];
+				Assert::IsTrue(value == i * 2);
+			}
 		}
 
 		TEST_METHOD(NonMovableTest)
@@ -514,12 +550,20 @@ namespace UnitTests
 				keys.push_back(slotmap.Insert(i));
 			}
 
+			int result{ 0 };
+
+			for (int i = 0; i < itemCount; ++i)
+			{
+				bool canGet = slotmap.TryGet(keys[i], result);
+				Assert::IsTrue(canGet);
+				Assert::IsTrue(result == i);
+			}
+
 			Assert::IsTrue(slotmap.Size() == itemCount);
 
 			Assert::IsTrue(slotmap.Erase(keys[50]));
 			Assert::IsTrue(slotmap.Size() == itemCount - 1);
 
-			int result{ 0 };
 			Assert::IsFalse(slotmap.TryGet(keys[50], result));
 
 			for (int i = 0; i < itemCount; ++i)
