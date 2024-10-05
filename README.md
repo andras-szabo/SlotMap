@@ -4,38 +4,42 @@ A simple, single module implementation of a SlotMap data structure, based on a t
 
 ## Usage
 
-// Create a slotmap of a given type, with a default capacity
-'Unalmas::SlotMap<int> slotmap;'
+#### Create a slotmap of a given type, with a default capacity
 
-// Create a slotmap of a given type with a specific capacity
-Unalmas::SlotMap<int> slotmap(32);
+`Unalmas::SlotMap<int> slotmap;`
 
-// Insert a value into the map, and keep the key
-Unalmas::SlotMapKey key = slotmap.Insert(123);
+#### Create a slotmap of a given type with a specific capacity
 
-// Look up a value - may throw exceptions if the key is not found or invalid
-const auto value = slotmap[key];
+`Unalmas::SlotMap<int> slotmap(32);`
 
-// Try to look up a value, handle errors gracefully
-int value;
-if (slotmap.TryGet(key, value)) { ... }
+#### Insert a value into the map, and keep the key
 
-// Erase a key-value pair
-bool couldErase = slotmap.Erase(key);
+`Unalmas::SlotMapKey key = slotmap.Insert(123);`
 
-// Clear the map altogether
-slotmap.Clear();
+#### Look up a value - may throw exceptions if the key is not found or invalid
 
-// Iterate through slotmap values (const)
-for (const auto& value : slotmap) { ... }
+`const auto value = slotmap[key];`
 
-// Iterate through slotmap values (non-const)
-for (auto& value : slotmap) { ... }
+#### Try to look up a value, handle errors gracefully
 
-// Iterate through slotmap by index
-for (int i = 0; i < slotmap.Size(); ++i)
+`int value;
+if (slotmap.TryGet(key, value)) { ... }`
+
+#### Erase a key-value pair
+`bool couldErase = slotmap.Erase(key);`
+
+#### Clear the map altogether
+`slotmap.Clear();`
+
+#### Iterate through slotmap values (const)
+`for (const auto& value : slotmap) { ... }`
+
+#### Iterate through slotmap values (non-const)
+`for (auto& value : slotmap) { ... }`
+
+#### Iterate through slotmap by index
+`for (int i = 0; i < slotmap.Size(); ++i)
 {
     const auto& item = slotmap[i];
     ...
-}
-
+}`
