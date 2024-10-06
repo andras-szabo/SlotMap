@@ -7,6 +7,7 @@
 import SlotMap;
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
+using namespace Unalmas;
 
 namespace UnitTests
 {
@@ -111,6 +112,61 @@ namespace UnitTests
 		}
 	};
 
+	TEST_CLASS(SlotMapItemPointerTests)
+	{
+	public:
+		SlotMap<int> slotMap;
+		SlotMapKey key;
+		SlotMapItemPointer<int> pointer;
+
+		TEST_METHOD_INITIALIZE(SetUp)
+		{
+			key = slotMap.Insert(42);
+			pointer = SlotMapItemPointer<int>(&slotMap, key);
+		}
+
+		TEST_METHOD(DereferenceOperator)
+		{
+			Assert::AreEqual(42, *pointer);
+		}
+
+		TEST_METHOD(ArrowOperator)
+		{
+			Assert::AreEqual(42, *pointer.operator->());
+		}
+
+		TEST_METHOD(InvalidKey)
+		{
+			SlotMapKey invalidKey{ -1, 0 };
+			SlotMapItemPointer<int> invalidPointer(&slotMap, invalidKey);
+			auto func = [&]() { *invalidPointer; };
+			Assert::ExpectException<std::out_of_range>(func);
+		}
+
+		TEST_METHOD(NullSlotMap)
+		{
+			SlotMapItemPointer<int> nullPointer(nullptr, key);
+			auto func = [&]() { *nullPointer; };
+			Assert::ExpectException<std::runtime_error>(func);
+		}
+
+		TEST_METHOD(LotsOfPointers)
+		{
+			SlotMap<int> slotmap(256);
+			std::vector<SlotMapItemPointer<int>> pointers;
+
+			for (int i = 0; i < 256; ++i)
+			{
+				const auto key = slotmap.Insert(i);
+				pointers.push_back(SlotMapItemPointer<int>(&slotmap, key));	
+			}
+
+			for (int i = 0; i < 256; ++i)
+			{
+				Assert::IsTrue(*pointers[i] == i);
+			}
+		}
+	};
 
 	TEST_CLASS(UnitTests)
 	{

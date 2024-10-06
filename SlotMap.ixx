@@ -25,7 +25,7 @@ export namespace Unalmas
 	{
 		int index{ -1 };
 		int generation{ 0 };
-		auto operator<=>(const SlotMapKey& other) const = default;
+		auto operator <=> (const SlotMapKey& other) const = default;
 
 		bool IsValid() const noexcept
 		{
@@ -53,7 +53,7 @@ export namespace Unalmas
 		const T& operator*() const
 		{
 #ifndef SLOTMAP_RELEASE
-			if (index >= size)
+			if (index < 0 || index >= size)
 			{
 				throw std::out_of_range("[SlotMap] Trying to dereference invalid iterator.");
 			}
@@ -76,7 +76,7 @@ export namespace Unalmas
 		T& operator*() const
 		{
 #ifndef SLOTMAP_RELEASE
-			if (this->index >= this->size)
+			if (this->index < 0 || this->index >= this->size)
 			{
 				throw std::out_of_range("[SlotMap] Trying to dereference invalid iterator.");
 			}
@@ -144,7 +144,7 @@ export namespace Unalmas
 	Unalmas::SlotMapKey SlotMap<T>::GetKeyForIndex(int index) const
 	{
 #ifndef SLOTMAP_RELEASE
-		if (index >= size)
+		if (index < 0 || index >= size)
 		{
 			throw std::out_of_range("[SlotMap] Trying to look up invalid index.");
 		}
@@ -175,7 +175,7 @@ export namespace Unalmas
 	T& SlotMap<T>::operator[](const SlotMapKey& key) const
 	{
 #ifndef SLOTMAP_RELEASE
-		if (key.index >= capacity)
+		if (key.index < 0 || key.index >= capacity)
 		{
 			throw std::out_of_range("[SlotMap] Key index is out of bounds.");
 		}
@@ -186,7 +186,7 @@ export namespace Unalmas
 #ifndef SLOTMAP_RELEASE
 		if (slot.generation != key.generation)
 		{
-			throw std::invalid_argument("[SlotMap] Trying to use a key which is no longer valid.");
+			throw std::runtime_error("[SlotMap] Trying to use a key which is no longer valid.");
 		}
 #endif
 
@@ -197,7 +197,7 @@ export namespace Unalmas
 	T& SlotMap<T>::operator[](int index) const
 	{
 #ifndef SLOTMAP_RELEASE
-		if (index >= size)
+		if (index < 0 || index >= size)
 		{
 			throw std::out_of_range("[SlotMap] Index is out of bounds.");
 		}
@@ -468,6 +468,38 @@ export namespace Unalmas
 		capacity = newCapacity;
 	}
 
+	template <typename T>
+	struct SlotMapItemPointer
+	{
+		SlotMap<T>* slotMap{ nullptr };
+		SlotMapKey key;
+
+		SlotMapItemPointer() = default;
+		SlotMapItemPointer(SlotMap<T>* slotMap_, SlotMapKey key_) : slotMap{ slotMap_ }, key{ key_ }
+		{}
+
+		T& operator*() const
+		{
+#ifndef SLOTMAP_RELEASE
+			if (slotMap == nullptr)
+			{
+				throw std::runtime_error("[SlotMap] Trying to dereference an invalid item pointer.");
+			}
+#endif
+			return (*slotMap)[key];
+		}
+
+		T* operator->() const
+		{
+#ifndef SLOTMAP_RELEASE
+			if (slotMap == nullptr)
+			{
+				throw std::runtime_error("[SlotMap] Trying to dereference an invalid item pointer.");
+			}
+#endif
+			return &(*slotMap)[key];
+		}
+	};
 } // namespace Unalmas
 
 template<>
