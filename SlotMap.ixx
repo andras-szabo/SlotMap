@@ -478,6 +478,8 @@ export namespace Unalmas
 		SlotMapItemPointer(SlotMap<T>* slotMap_, SlotMapKey key_) : slotMap{ slotMap_ }, key{ key_ }
 		{}
 
+		bool IsValid() const { return slotMap != nullptr && key.IsValid; }
+
 		T& operator*() const
 		{
 #ifndef SLOTMAP_RELEASE

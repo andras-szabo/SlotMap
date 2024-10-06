@@ -166,6 +166,18 @@ namespace UnitTests
 				Assert::IsTrue(*pointers[i] == i);
 			}
 		}
+
+		TEST_METHOD(Copy)
+		{
+			SlotMapItemPointer<int> copy(pointer);
+			Assert::AreEqual(42, *copy);
+		}
+
+		TEST_METHOD(Move)
+		{
+			SlotMapItemPointer<int> moved(std::move(pointer));
+			Assert::AreEqual(42, *moved);
+		}
 	};
 
 	TEST_CLASS(UnitTests)
